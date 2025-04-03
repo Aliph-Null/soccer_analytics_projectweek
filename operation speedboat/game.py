@@ -5,7 +5,7 @@ from Python.helperfunctions import fetch_match_events, fetch_tracking_data
 
 class PygameWindow:
     # init the window, just basic ass values
-    def __init__(self, connect, title="speedboat", fullscreen=False):
+    def __init__(self, connect, title="speedboat", fullscreen=True):
         pygame.init()
         self.title = title
         self.connection = connect
