@@ -128,7 +128,7 @@ class PygameWindow:
 
         pygame.display.flip()
         
-    def display_match(self, match_id, home_team_id, away_team_id):
+    def display_match(self, match_id, home_team_id, away_team_id, events):
         data = self.fetch_data_once(match_id)
         tracking_df = data.get('tracking_data')
 
@@ -153,7 +153,7 @@ class PygameWindow:
         button_width, button_height = 150, 60
         button_x = (self.width - button_width) // 2
         button_y = self.height - 100
-        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), [], self.return_to_main)
+        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), events, self.return_to_main)
 
         pygame.display.flip()
         
@@ -266,7 +266,7 @@ class PygameWindow:
             elif self.view == "match" and self.selected_match:
                 self.frame += 1
                 match_id, home_team, away_team, home_team_id, away_team_id = self.selected_match
-                self.display_match(match_id, home_team_id, away_team_id)
+                self.display_match(match_id, home_team_id, away_team_id, events)
             
             pygame.display.flip()
             self.clock.tick(60)
