@@ -1,11 +1,11 @@
+import math
 import pandas as pd
 import pygame
 from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
 from Python.helperfunctions import fetch_match_events, fetch_tracking_data, fetch_home_players
 
 class PygameWindow:
-    # init the window, just basic ass values
-    def __init__(self, connect, title="speedboat", fullscreen=False):
+    def __init__(self, connect, title="speedboat", fullscreen=True):
         pygame.init()
         self.title = title
         self.connection = connect
@@ -14,80 +14,114 @@ class PygameWindow:
         self.width, self.height = info.current_w, info.current_h
         flags = pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE
         
-        self.screen = pygame.display.set_mode((info.current_w, info.current_h), flags)
+        self.screen = pygame.display.set_mode((self.width, self.height), flags)
         pygame.display.set_caption(self.title)
         
         self.running = True
         self.clock = pygame.time.Clock()
+        # Default font is kept, but now we allow custom font in draw_text method
         self.font = pygame.font.Font(None, 22)
 
-        # State variable to track if we are in the main menu, match view, or graph view
-        self.view = "main"  # It can be "main", "graph", or "match"
-        self.selected_match = None  # To store the currently selected match
-        self.cached_data = {} #So I don't crash the DB X)
+        # State variables for view and pagination
+        self.view = "main"  # "main", "graph", or "match"
+        self.selected_match = None  
+        self.cached_data = {}
+        self.current_page = 0
+        self.items_per_page = 6
 
-    def draw_button(self, text, x, y, width, height, color, hover_color, action=None):
-        mouse = pygame.mouse.get_pos()
-        click = pygame.mouse.get_pressed()
         
+        
+        # Load and scale the background ball image to cover the entire screen
+        try:
+            original_ball_img = pygame.image.load("ball.png").convert_alpha()
+            orig_rect = original_ball_img.get_rect()
+            scale_factor = max(self.width / orig_rect.width, self.height / orig_rect.height)
+            new_width = int(orig_rect.width * scale_factor)
+            new_height = int(orig_rect.height * scale_factor)
+            self.ball_img = pygame.transform.smoothscale(original_ball_img, (new_width, new_height))
+        except Exception as e:
+            print(f"Error loading ball.png: {e}")
+            self.ball_img = None
+
+    def scale_image_to_fit(self, image, max_width, max_height):
+        width, height = image.get_size()
+        scale_factor = min(max_width / width, max_height / height)
+        if scale_factor < 1:  # Only scale down if needed
+            new_width = int(width * scale_factor)
+            new_height = int(height * scale_factor)
+            return pygame.transform.smoothscale(image, (new_width, new_height))
+        return image
+
+    def set_fullscreen(self):
+        """Explicitly set the display to full-screen mode using the screen's native resolution."""
+        info = pygame.display.Info()
+        self.width, self.height = info.current_w, info.current_h
+        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+
+    def draw_button(self, text, x, y, width, height, color, hover_color, events, action=None):
         button_rect = pygame.Rect(x, y, width, height)
-
-        # change to hover_color when hovering over        
-        if button_rect.collidepoint(mouse):
-            pygame.draw.rect(self.screen, hover_color, button_rect)
-            if click[0] and action:
-                action()
-
-        # normal color otherwise
-        else:
-            pygame.draw.rect(self.screen, color, button_rect)
+        mouse = pygame.mouse.get_pos()
+        current_color = hover_color if button_rect.collidepoint(mouse) else color
+        pygame.draw.rect(self.screen, current_color, button_rect)
         
-        # colors and stuff
-        text_surface = self.font.render(text, True, (0, 0, 0))
-        text_rect = text_surface.get_rect(center=(x + width // 2, y + height // 2))
-        self.screen.blit(text_surface, text_rect)
+        # Using the new draw_text method with custom font options if needed.
+        # Here, the default font settings are used, but you can change them.
+        self.draw_text(x + width // 2, y + height // 2, text, font_size=22, bold=False, color=(0, 0, 0))
+        
+        # Check for MOUSEBUTTONUP events over this button
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONUP and button_rect.collidepoint(event.pos):
+                if action:
+                    action()
 
-    # draws text on x and y coords must be given with function
-    def draw_text(self, x, y, text, color=(255, 255, 255)):
-        text_surface = self.font.render(text, True, color)
+    def draw_text(self, x, y, text, font_size=22, bold=False, color=(255, 255, 255)):
+        """
+        Draw text on the screen at (x, y) with the option to specify font size and bold style.
+        """
+        # Create a new font with the specified size
+        font = pygame.font.Font(None, font_size)
+        font.set_bold(bold)
+        text_surface = font.render(text, True, color)
         text_rect = text_surface.get_rect(center=(x, y))
         self.screen.blit(text_surface, text_rect)
 
-    # everything that needs to be shown on match thingy majyg (I am tired af :( )
-    def display_graph(self, match_id, home_team, away_team):
-        """ Display the new frame with teams' names """
+    def display_graph(self, match_id, home_team, away_team, events):
         self.screen.fill((168, 213, 241))
-        self.draw_text(self.width // 2, self.height // 9, f"Match id: {match_id}")
-        self.draw_text(self.width // 2, self.height // 9 + 50, f"Home Team: {home_team}")
-        self.draw_text(self.width // 2, self.height // 9 + 100, f"Away Team: {away_team}", color=(0, 255, 0))  # You can change the color if desired
+        self.draw_text(self.width // 2, self.height // 9, f"Match id: {match_id}", font_size=28, bold=True, color=(16, 16, 16))
+        self.draw_text(self.width // 2, self.height // 9 + 50, f"Home Team: {home_team}", font_size=28, bold=True, color=(77, 169, 77))
+        self.draw_text(self.width // 2, self.height // 9 + 100, f"Away Team: {away_team}", font_size=28, bold=True, color=(169, 77, 77))
 
-        # campus
-        # df_match_events = fetch_match_events(match_id, self.connection)
-        # df_tracking = fetch_tracking_data(match_id, self.connection)
+
+        tracking_df = self.fetch_data_once(match_id).get('tracking_data')
+        events_df = self.fetch_data_once(match_id).get('match_events')
+
         
-        # Ask denis for extra info on how to implement this because IDFK anymore man, I want to sleep but I CAN'T, and I WON'T!!!
-        # values (we have to get those from db)
         labels = ["Short Passes %", "Medium Passes %", "Long Passes %", "Pass success rate %", "Time to first Pass (s)"]
         t1Values = [10, 70, 20, 58, 20]
         t2Values = [30, 20, 50, 53, 3]
 
-        # generate the graphs(we need a better way to give the values to the graph functions because IDK what all of this means)
-        image1 = SpiderChart_2T("Passes comparison", ["Belgium", "France"], labels, t1Values, t2Values, [0, 100])
-        image2 = SpiderChart_1T("Passes", "Belgium", labels, t1Values, [0, 100], "#4CEF4C")
-        # voronoi = voronoi_graph(tracking_data) #check this how I am goin to do that at campus (my enlgish is slowly fading...), mr dtark, i don't feel so goosd.
+        image1 = SpiderChart_2T("Passes comparison", [home_team, away_team], labels, t1Values, t2Values, [0, 100])
+        image2 = SpiderChart_1T("Passes", home_team, labels, t1Values, [0, 100], "#4CEF4C")
 
-        # sizes of the graphs
-        image1_rect = image1.get_rect(center=(self.width // 3, self.height // 3))
-        image2_rect = image2.get_rect(center=(2 * self.width // 3, self.height // 3))
+        # Define maximum dimensions for each graph (e.g. half the screen width minus a margin, and half the screen height)
+        max_width = (self.width // 2 - 150) * 2
+        max_height = (self.height // 2 - 150) * 2
 
-        # Blit images to the screen
+        # Scale images if they exceed these dimensions
+        image1 = self.scale_image_to_fit(image1, max_width, max_height)
+        image2 = self.scale_image_to_fit(image2, max_width, max_height)
+
+        image1_rect = image1.get_rect(center=(self.width // 4, self.height // 2))
+        image2_rect = image2.get_rect(center=(self.width - self.width // 4, self.height // 2))
+
         self.screen.blit(image2, image2_rect)
         self.screen.blit(image1, image1_rect)
 
-        # Create a button to go back to the main screen
+        # Back button for graph view
         button_width, button_height = 150, 60
         button_x = (self.width - button_width) // 2
         button_y = self.height - 100
+
         self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), self.return_to_main)
 
         pygame.display.flip()
@@ -130,7 +164,6 @@ class PygameWindow:
             home_players_id = fetch_home_players(match_id, self.connection)
             #away_id = fetch_away_player(match_id, self.connection)    
             
-            
             self.cached_data[match_id] = {
                 'match_events': match_events,
                 'tracking_data': tracking_data,
@@ -138,82 +171,87 @@ class PygameWindow:
             }
         return self.cached_data[match_id]
 
-    # return to the main function (I mean name says it all)
     def return_to_main(self):
-        """ Function to return to the main menu """
         self.view = "main"
-        self.selected_match = None  # Reset the selected match
+        self.selected_match = None
 
-    # toggles between match view, graph view, and main menu, also resets the selected match
     def toggle_views(self, match_id=None, home_team=None, away_team=None, view_type="main"):
-        """ Toggle between the main menu, graph view, and match view """
         if view_type == "main":
             self.view = "main"
-        #select match view en set selected match to the selected one
         elif view_type == "match":
             self.view = "match"
             self.selected_match = (match_id, home_team, away_team)
-        
-        #select graph view en set selected match to the selected one
         elif view_type == "graph":
             self.view = "graph"
             self.selected_match = (match_id, home_team, away_team)
 
-    # main loop
     def run(self, games):
-        # initial values for buttons
         button_width, button_height = 150, 60
-
-        # if you want a quit button use these values, now it is just on escape button
-        button_x = (self.width - button_width) // 2
-        button_y = (self.height - 100)
-
-        # initial values for match buttons
         match_button_h = 50
         vertical_spacing = 75
         match_button_w = 300
-        match_pos_y = self.height // 2
-        match_pos_x = (self.width - match_button_w) // 2
-
-        # initial values for graph buttons
         graph_button_w = 100
-        graph_pos_x = (self.width - graph_button_w) // 2 + 375
-        
-        while self.running:
-            self.screen.fill((168, 213, 241))
 
-            for event in pygame.event.get():
+        self.set_fullscreen()
+
+        while self.running:
+            events = pygame.event.get()
+            for event in events:
                 if event.type == pygame.QUIT:
                     self.running = False
-                # Check if the Escape key is pressed
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:  # Escape key
-                        self.running = False
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    self.running = False
+                if event.type == pygame.VIDEORESIZE:
+                    # Reset to full-screen mode with original dimensions
+                    self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+            
+            self.screen.fill((168, 213, 241))
             
             if self.view == "main":
-                # Draw the main menu
-                self.draw_text(self.width // 2, 100, "Please select a match to analyze!, watching the match takes time to load.")
+  # Draw the background ball image scaled to cover the screen
+                if self.ball_img:
+                    ball_rect = self.ball_img.get_rect(center=(0, self.height // 2))
+                    self.screen.blit(self.ball_img, ball_rect)
                 
-                # loops for all matches
-                for i, match_id in enumerate(games["match_id"]):
-                    home_team = games[games["match_id"] == match_id]['home_team_name'].values[0]
-                    away_team = games[games["match_id"] == match_id]['away_team_name'].values[0]
+                self.draw_text(self.width // 2, 100, "Please select a match to analyze!", font_size=30, bold=True, color=(16, 16, 16))
+                
+                total_matches = len(games["match_id"])
+                total_pages = math.ceil(total_matches / self.items_per_page)
+                start_index = self.current_page * self.items_per_page
+                end_index = start_index + self.items_per_page
+                current_matches = games.iloc[start_index:end_index]
+
+                match_pos_x = (self.width - match_button_w) // 2
+                graph_pos_x = match_pos_x + match_button_w + 20
+
+                for idx, row in enumerate(current_matches.itertuples()):
+                    match_id = row.match_id
+                    home_team = row.home_team_name
+                    away_team = row.away_team_name
                     match_string = f"{home_team} vs {away_team}"
-
-                    # Calculate the vertical position for each match
-                    match_pos_y = 200 + i * vertical_spacing  # Adjust the y-position for each match 
-
-                    # When a match button is clicked, show the match details
-                    self.draw_button(match_string, match_pos_x, match_pos_y, match_button_w, match_button_h, (168, 177, 241), (156, 166, 235), 
-                                     lambda match_id=match_id, home_team=home_team, away_team=away_team: self.toggle_views(match_id, home_team, away_team, view_type="match"))
                     
-                    self.draw_button('graphs', graph_pos_x, match_pos_y, graph_button_w, match_button_h, (168, 177, 241), (156, 166, 235), 
-                                     lambda match_id=match_id, home_team=home_team, away_team=away_team: self.toggle_views(match_id, home_team, away_team, view_type="graph"))
-
-            # only shows when a graph is selected
+                    match_pos_y = 200 + idx * vertical_spacing
+                    
+                    self.draw_button(match_string, match_pos_x, match_pos_y, match_button_w, match_button_h, 
+                                     (168, 177, 241), (156, 166, 235), events, 
+                                     lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="match"))
+                    
+                    self.draw_button("Graphs", graph_pos_x, match_pos_y, graph_button_w, match_button_h, 
+                                     (168, 177, 241), (156, 166, 235), events, 
+                                     lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="graph"))
+                
+                # Pagination buttons
+                pagination_y = self.height - 50
+                if self.current_page > 0:
+                    self.draw_button("Prev", 50, pagination_y, 100, 40, (200, 200, 200), (150, 150, 150), events, 
+                                     lambda: self.change_page(-1))
+                if self.current_page < total_pages - 1:
+                    self.draw_button("Next", self.width - 150, pagination_y, 100, 40, (200, 200, 200), (150, 150, 150), events, 
+                                     lambda: self.change_page(1))
+            
             elif self.view == "graph" and self.selected_match:
                 match_id, home_team, away_team = self.selected_match
-                self.display_graph(match_id, home_team, away_team)
+                self.display_graph(match_id, home_team, away_team, events)
             
             elif self.view == "match" and self.selected_match:
                 match_id, home_team, away_team = self.selected_match
@@ -221,6 +259,11 @@ class PygameWindow:
             
             pygame.display.flip()
             self.clock.tick(60)
+
+    def change_page(self, delta):
+        self.current_page += delta
+        if self.current_page < 0:
+            self.current_page = 0
 
     def quit_game(self):
         self.running = False
