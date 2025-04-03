@@ -80,26 +80,21 @@ def fetch_match_events(match_id, conn):
     if conn is None:
         raise ValueError("Database connection 'conn' must be provided.")
 
-    try:
-        # Query to fetch match events
-        query = f"""
-        SELECT me.match_id, me.event_id, me.eventtype_id, et.name AS eventtype_name, me.result, me.success, me.period_id, 
-                me.timestamp, me.end_timestamp, me.ball_state, me.ball_owning_team, 
-                me.team_id, me.player_id, me.x, me.y, me.end_coordinates_x, 
-                me.end_coordinates_y, me.receiver_player_id, rp.team_id AS receiver_team_id
-        FROM matchevents me
-        LEFT JOIN players rp ON me.receiver_player_id = rp.player_id
-        LEFT JOIN eventtypes et ON me.eventtype_id = et.eventtype_id
-        WHERE me.match_id = '{match_id}'
-        ORDER BY me.period_id ASC, me.timestamp ASC;
-        """
-        # Execute query and load data into a DataFrame
-        events_df = pd.read_sql_query(query, conn)
-        return events_df
-    finally:
-        # Close the connection
-        # Ensure the caller handles connection closure
-        pass
+    # Query to fetch match events
+    query = f"""
+    SELECT me.match_id, me.event_id, me.eventtype_id, et.name AS eventtype_name, me.result, me.success, me.period_id, 
+            me.timestamp, me.end_timestamp, me.ball_state, me.ball_owning_team, 
+            me.team_id, me.player_id, me.x, me.y, me.end_coordinates_x, 
+            me.end_coordinates_y, me.receiver_player_id, rp.team_id AS receiver_team_id
+    FROM matchevents me
+    LEFT JOIN players rp ON me.receiver_player_id = rp.player_id
+    LEFT JOIN eventtypes et ON me.eventtype_id = et.eventtype_id
+    WHERE me.match_id = '{match_id}'
+    ORDER BY me.period_id ASC, me.timestamp ASC;
+    """
+    # Execute query and load data into a DataFrame
+    events_df = pd.read_sql_query(query, conn)
+    return events_df
 
 def fetch_team_matches(team_name, conn):
     """
@@ -247,6 +242,107 @@ def fetch_player_teams(team_id, conn):
     home_players = pd.read_sql_query(query, conn)
     return home_players
 
+def seconds_to_hms(seconds):
+    try:
+        total_seconds = int(float(seconds))
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        secs = total_seconds % 60
+        return f"{hours:02}:{minutes:02}:{secs:02}"
+    except (TypeError, ValueError):
+        return "00:00:00"
+    
+def fetch_transitions(match_id, team_id, conn):
+    query = f"""
+    WITH action_changes AS (
+        SELECT
+            a.*,
+            LAG(a.team_id) OVER (ORDER BY a.period_id, a.seconds, a.id) AS prev_team_id,
+            LEAD(a.team_id) OVER (ORDER BY a.period_id, a.seconds, a.id) AS next_team_id
+        FROM
+            spadl_actions a
+        WHERE
+            a.game_id = '{match_id}'
+    ),
+    possession_markers AS (
+        SELECT
+            *,
+            CASE WHEN prev_team_id IS NULL OR team_id != prev_team_id THEN 1 ELSE 0 END AS is_new_possession
+        FROM
+            action_changes
+    ),
+    possession_sequences AS (
+        SELECT
+            *,
+            SUM(is_new_possession) OVER (ORDER BY period_id, seconds, id) AS possession_group
+        FROM
+            possession_markers
+    ),
+    possession_stats AS (
+        SELECT
+            possession_group,
+            team_id,
+            COUNT(*) AS action_count,
+            MAX(id) AS last_action_id,
+            MIN(id) AS first_action_id
+        FROM
+            possession_sequences
+        GROUP BY
+            possession_group, team_id
+    )
+    SELECT
+        a.id AS action_id,
+        a.game_id,
+        a.period_id,
+        a.seconds AS time_seconds,
+        a.team_id AS team_losing_possession,
+        a.next_team_id AS team_gaining_possession,
+        a.action_type AS type_name,
+        a.result AS result_name,
+        ps.action_count AS consecutive_team_actions,
+        a.start_x,
+        a.start_y,
+        a.end_x,
+        a.end_y,
+        a.id AS original_event_id,
+        start_a.period_id AS start_period_id,
+        start_a.seconds AS start_seconds
+    FROM
+        possession_sequences a
+    JOIN
+        possession_stats ps ON a.possession_group = ps.possession_group 
+        AND a.team_id = ps.team_id
+        AND a.id = ps.last_action_id
+    JOIN
+        spadl_actions start_a ON start_a.id = ps.first_action_id
+    WHERE
+        ps.action_count >= 3
+        AND a.team_id != a.next_team_id
+        AND a.next_team_id IS NOT NULL
+        AND a.start_x < 50
+        AND a.end_x > 50
+        AND a.next_team_id = '{team_id}'
+    ORDER BY
+        a.period_id,
+        a.seconds,
+        a.id;
+    """
+    df = pd.read_sql_query(query, conn)
+
+    transitions = []
+
+    for index, row in df.iterrows():
+        period = row['period_id']
+        timestamp1 = seconds_to_hms(row['time_seconds'])
+        timestamp2 = seconds_to_hms(row['start_seconds'])
+
+        transitions.append({
+            'period': period,
+            'start_timestamp' : timestamp2,
+            'end_timestamp' : timestamp1
+        })
+    return transitions
+        
 
 
 def visualise_important_moments(match_id, conn):
