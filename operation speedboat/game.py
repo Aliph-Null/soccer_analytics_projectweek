@@ -192,9 +192,9 @@ class PygameWindow:
                     self.running = False
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     self.running = False
-                if event.type == pygame.VIDEORESIZE:
-                    # Reset to full-screen mode with original dimensions
-                    self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+                # if event.type == pygame.VIDEORESIZE:
+                #     # Reset to full-screen mode with original dimensions
+                #     self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
             
             self.screen.fill((168, 213, 241))
             
