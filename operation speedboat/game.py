@@ -191,7 +191,6 @@ class PygameWindow:
         # Scale images if they exceed these dimensions
         image1 = self.scale_image_to_fit(image1, max_width, max_height)
         #image2 = self.scale_image_to_fit(image2, max_width, max_height)
-        print(image1.dtype)
         image1_rect = image1.get_rect(center=(self.width // 4, self.height // 2))
         #image2_rect = image2.get_rect(center=(self.width - self.width // 4, self.height // 2))
 
