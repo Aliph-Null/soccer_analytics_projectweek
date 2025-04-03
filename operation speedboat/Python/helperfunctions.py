@@ -250,59 +250,6 @@ def fetch_player_teams(team_id, conn):
 
 
 def visualise_important_moments(match_id, conn):
-    # This will need need this to work:
-
-# time = df_time.iloc[0]['seconds']
-
-# subset = df_tracking[((df_tracking['timestamp'] >= time -10) & (df_tracking['timestamp'] < time + 10))]
-# subset
-
-# colors = ["orange", "blue"]  
-
-# def plot_tracking_data(tracking_data):
-#     clear_output(wait=True)
-
-#     # Define pitch dimensions and colors
-#     pitch = Pitch(pitch_color='grass', line_color='white', pitch_type='opta',
-#                   pitch_length=105, pitch_width=68)
-#     fig, ax = pitch.draw(figsize=(12, 8))
-
-#     # Extract timestamp
-#     timestamp = tracking_data['timestamp'].iloc[0]
-    
-#     # Assign colors to teams based on sorted order
-#     team_names = sorted(tracking_data['team_id'].unique())  # Sort to maintain consistency
-#     team_colors = {team: colors[i % len(colors)] for i, team in enumerate(team_names)}
-
-#     # Plot player positions
-#     for _, row in tracking_data.iterrows():
-#         x, y = row['x'], row['y']
-#         player_name = row['player_name']
-#         team_name = row['team_id']
-#         jersey_no = row['jersey_number']
-
-#         # Plot the ball
-#         if player_name == 'Ball':
-#             pitch.scatter(x, y, s=90, color='yellow', ax=ax, label='Ball')
-#         else:
-#             # Plot players with consistent team colors
-#             pitch.scatter(x, y, s=100, color=team_colors[team_name], ax=ax, label=team_name)
-
-#         # Add player names (excluding the ball)
-#         if player_name != 'Ball':
-#             ax.text(x + 2, y + 2, f"{player_name} ({jersey_no})", fontsize=8)
-
-#     # Set title
-#     ax.set_title(f'Player Positions at Event Timestamp: {timestamp}', fontsize=16)
-#     plt.tight_layout()
-#     plt.show()
-
-# # Iterate over frames and plot tracking data
-# for i in range(int(max(subset['timestamp']) - min(subset['timestamp']) + 1)):
-#     frame_id = subset['frame_id'].unique()[i]
-#     filtered_tracking_df = subset[subset['frame_id'] == frame_id]
-#     plot_tracking_data(filtered_tracking_df)
-
     query = f'''
         SELECT spa.* , m.home_team_id, m.away_team_id, me.ball_owning_team, t.team_name, p.player_name
         FROM spadl_actions spa
@@ -359,7 +306,36 @@ def visualise_important_moments(match_id, conn):
     filtered_df_time = df_time[df_time['seconds'].isin(valid_times)]
     filtered_df_time = filtered_df_time.drop_duplicates()
 
-    filtered_df_time
+    time = filtered_df_time.iloc[0]['seconds']
+    subset = df_tracking[((df_tracking['timestamp'] >= time -5) & (df_tracking['timestamp'] < time + 18))]
+    subset
 
+    colors = ["orange", "blue"]
 
+    def plot_tracking_data(tracking_data):
+        clear_output(wait=True)
+        pitch = Pitch(pitch_color='grass', line_color='white', pitch_type='opta', pitch_length=105, pitch_width=68)
+        fig, ax = pitch.draw(figsize=(12, 8))
 
+        timestamp = tracking_data['timestamp'].iloc[0]
+        team_colors = {team: colors[i % len(colors)] for i, team in enumerate(sorted(tracking_data['team_id'].unique()))}
+
+        for _, row in tracking_data.iterrows():
+            x, y = row['x'], row['y']
+            player_name = row['player_name']
+            jersey_no = row['jersey_number']
+
+            if player_name == 'Ball':
+                pitch.scatter(x, y, s=90, color='yellow', ax=ax, label='Ball')
+            else:
+                pitch.scatter(x, y, s=100, color=team_colors[row['team_id']], ax=ax, label=row['team_id'])
+                ax.text(x + 2, y + 2, f"{player_name} ({jersey_no})", fontsize=8)
+
+        ax.set_title(f'Player Positions at Event Timestamp: {timestamp}', fontsize=16)
+        plt.tight_layout()
+        plt.show()
+    unique_frame_ids = subset['frame_id'].unique()
+    
+    for frame_id in unique_frame_ids:
+        filtered_tracking_df = subset[subset['frame_id'] == frame_id]
+        plot_tracking_data(filtered_tracking_df)
