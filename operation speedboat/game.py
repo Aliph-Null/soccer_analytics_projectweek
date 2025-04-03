@@ -2,7 +2,7 @@ import math
 import pandas as pd
 import pygame
 
-from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_home_players
+from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_home_players, visualise_important_moments
 from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
 
 class PygameWindow:
@@ -149,12 +149,12 @@ class PygameWindow:
         
     def fetch_data_once(self, match_id):
         if match_id not in self.cached_data:
+
             # remove None and uncomment this please
             match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
             home_players_id = fetch_home_players(match_id, self.connection)
             # away_id = fetch_away_player(match_id, self.connection)    
-            
             self.cached_data[match_id] = {
                 'match_events': match_events,
                 'tracking_data': tracking_data,
