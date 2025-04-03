@@ -65,9 +65,6 @@ JOIN teams t_away ON m.away_team_id = t_away.team_id
 matches_df = pd.read_sql_query(query_matches, conn)
 print(matches_df)
 
-# Display DataFrame
-print(matches_df)
-
 if __name__ == "__main__":
     #campus
     game = PygameWindow(conn, title="Maximized Pygame Window", fullscreen=False)

@@ -239,11 +239,10 @@ def calculate_ball_possession(match_id, conn, team_id):
 
 #     return spadl_data_df
 
-def fetch_home_players(match_id, conn):
-    query = '''
-    SELECT p.player_name, p.player_id, m.match_id FROM matches m
-    JOIN teams t ON m.home_team_id = t.team_id
-    RIGHT JOIN players p ON p.team_id = t.team_id;
+def fetch_player_teams(team_id, conn):
+    query = f'''
+    SELECT p.player_id FROM players p
+    WHERE p.team_id = '{team_id}' AND p.player_name != 'ball';
     '''
     home_players = pd.read_sql_query(query, conn)
     return home_players
