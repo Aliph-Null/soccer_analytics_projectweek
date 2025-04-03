@@ -40,20 +40,20 @@ def SpiderChart_2T(ChartTitle, TeamNames, labels, t1Values, t2Values, value_rang
 
     ax.set_thetagrids(np.degrees(angles[:-1]), labels)
     for label in ax.get_xticklabels():
-        label.set_color("white")
+        label.set_color("black")
     for label in ax.get_yticklabels():
-        label.set_color("white")
+        label.set_color("black")
     
-    ax.grid(color='white', linestyle='--', linewidth=0.5, alpha=0.7)
+    ax.grid(color='black', linestyle='--', linewidth=0.5, alpha=0.7)
     for spine in ax.spines.values():
-        spine.set_color('white')
+        spine.set_color('black')
     
     ax.set_ylim(value_range[0], value_range[1])
-    ax.set_title(ChartTitle, y=1.08, color='white')
+    ax.set_title(ChartTitle, y=1.08, color='black')
 
     leg = ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1), frameon=False)
     for text in leg.get_texts():
-        text.set_color("white")
+        text.set_color("black")
 
     return matplotlib_to_pygame_surface(fig)
 
@@ -177,4 +177,3 @@ def pitch_graph(tracking_data):
     ax.set_title(f'Player Positions at Event Timestamp: {timestamp}', fontsize=16)
     plt.tight_layout()
     return matplotlib_to_pygame_surface(fig)
-

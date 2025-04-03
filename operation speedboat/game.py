@@ -89,17 +89,100 @@ class PygameWindow:
         self.draw_text(self.width // 2, self.height // 9 + 50, f"Home Team: {home_team}", font_size=28, bold=True, color=(77, 169, 77))
         self.draw_text(self.width // 2, self.height // 9 + 100, f"Away Team: {away_team}", font_size=28, bold=True, color=(169, 77, 77))
 
-        # Use cached data once
-        data = self.fetch_data_once(match_id)
-        tracking_df = data.get('tracking_data')
-        events_df = data.get('match_events')
+        events_df = self.fetch_data_once(match_id).get('match_events')
+        
+        #print(events_df)
 
-        labels = ["Short Passes %", "Medium Passes %", "Long Passes %", "Pass success rate %", "Time to first Pass (s)"]
-        t1Values = [10, 70, 20, 58, 20]
-        t2Values = [30, 20, 50, 53, 3]
+        # Define eventtype_ids based on provided mappings
+        pass_eventtype_id = "e319ac55-ffaf-4e6d-87f7-7601d91bcd33"
+        goodskill_eventtype_id = "92c60f97-4073-4955-ba08-ec20d7a3cf98"
+
+        # Filter pass events
+        pass_events = events_df[events_df['eventtype_id'] == pass_eventtype_id]
+
+        # Filter good skill events
+        goodskill_events = events_df[events_df['eventtype_id'] == goodskill_eventtype_id]
+
+        # Count good skill events for each team
+        home_team_goodskill = goodskill_events[goodskill_events['team_id'] == home_team_id].shape[0]
+        away_team_goodskill = goodskill_events[goodskill_events['team_id'] == away_team_id].shape[0]
+
+        total_goodskill = home_team_goodskill + away_team_goodskill
+        if total_goodskill == 0:
+            total_goodskill = 1
+
+        # Initialize counters for pass statistics
+        home_short_passes = 0
+        home_medium_passes = 0
+        home_long_passes = 0
+        home_successful_passes = 0
+
+        away_short_passes = 0
+        away_medium_passes = 0
+        away_long_passes = 0
+        away_successful_passes = 0
+
+        # Process each pass event
+        for index, row in pass_events.iterrows():
+            # Calculate Euclidean distance
+            start_x = row['x']
+            start_y = row['y']
+            end_x = row['end_coordinates_x']
+            end_y = row['end_coordinates_y']
+            distance = ((end_x - start_x) ** 2 + (end_y - start_y) ** 2) ** 0.5
+
+            # Categorize pass based on distance
+            if distance < 10:
+                category = 'short'
+            elif distance < 40:
+                category = 'medium'
+            else:
+                category = 'long'
+
+            # Check if pass was successful
+            is_successful = row['success']
+
+            # Update counters based on team
+            team_id = row['team_id']
+            if team_id == home_team_id:
+                if category == 'short':
+                    home_short_passes += 1
+                elif category == 'medium':
+                    home_medium_passes += 1
+                elif category == 'long':
+                    home_long_passes += 1
+                if is_successful:
+                    home_successful_passes += 1
+            elif team_id == away_team_id:
+                if category == 'short':
+                    away_short_passes += 1
+                elif category == 'medium':
+                    away_medium_passes += 1
+                elif category == 'long':
+                    away_long_passes += 1
+                if is_successful:
+                    away_successful_passes += 1
+
+        # Results are now stored in the required variables:
+        # home_team_short_passes, home_team_medium_passes, home_team_long_passes,
+        # home_team_successful_passes, home_team_goodskill
+        # away_team_short_passes, away_team_medium_passes, away_team_long_passes,
+        # away_team_successful_passes, away_team_goodskill
+        home_team_total_passes = home_short_passes + home_medium_passes + home_long_passes
+        away_team_total_passes = away_short_passes + away_medium_passes + away_long_passes
+
+        if home_team_total_passes == 0:
+            home_team_total_passes = 1
+
+        if away_team_total_passes == 0:
+            away_team_total_passes = 1
+
+        labels = ["Short Passes %", "Medium Passes %", "Long Passes %", "Pass success rate %", "Initiative and controll"]
+        t1Values = [home_short_passes / home_team_total_passes * 100, home_medium_passes / home_team_total_passes * 100, home_long_passes / home_team_total_passes * 100, home_successful_passes / home_team_total_passes * 100, home_team_goodskill / total_goodskill * 100]
+        t2Values = [away_short_passes / away_team_total_passes * 100, away_medium_passes / away_team_total_passes * 100, away_long_passes / away_team_total_passes * 100, away_successful_passes / away_team_total_passes * 100, away_team_goodskill / total_goodskill * 100]
 
         image1 = SpiderChart_2T("Passes comparison", [home_team, away_team], labels, t1Values, t2Values, [0, 100])
-        image2 = SpiderChart_1T("Passes", home_team, labels, t1Values, [0, 100], "#4CEF4C")
+        #image2 = SpiderChart_1T("Passes", home_team, labels, t1Values, [0, 100], "#4CEF4C")
 
         # Define maximum dimensions for each graph (e.g. half the screen width minus a margin, and half the screen height)
         max_width = (self.width // 2 - 150) * 2
@@ -107,13 +190,13 @@ class PygameWindow:
 
         # Scale images if they exceed these dimensions
         image1 = self.scale_image_to_fit(image1, max_width, max_height)
-        image2 = self.scale_image_to_fit(image2, max_width, max_height)
-
+        #image2 = self.scale_image_to_fit(image2, max_width, max_height)
+        print(image1.dtype)
         image1_rect = image1.get_rect(center=(self.width // 4, self.height // 2))
-        image2_rect = image2.get_rect(center=(self.width - self.width // 4, self.height // 2))
+        #image2_rect = image2.get_rect(center=(self.width - self.width // 4, self.height // 2))
 
-        self.screen.blit(image2, image2_rect)
         self.screen.blit(image1, image1_rect)
+        #self.screen.blit(image2, image2_rect)
 
         # Back button for graph view
         button_width, button_height = 150, 60
@@ -204,7 +287,7 @@ class PygameWindow:
                     ball_rect = self.ball_img.get_rect(center=(0, self.height // 2))
                     self.screen.blit(self.ball_img, ball_rect)
                 
-                self.draw_text(self.width // 2, 100, "Please select a match to analyze! getting all the info takes a while", font_size=30, bold=True, color=(16, 16, 16))
+                self.draw_text(self.width // 2 + 25, 100, "Please select a match to analyze! getting all the info takes a while", font_size=30, bold=False, color=(16, 16, 16))
                 
                 total_matches = len(games["match_id"])
                 total_pages = math.ceil(total_matches / self.items_per_page)
