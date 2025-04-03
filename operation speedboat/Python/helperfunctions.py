@@ -2,6 +2,10 @@ import pandas as pd
 import psycopg2
 import dotenv
 import os
+import matplotlib.pyplot as plt
+from mplsoccer import Pitch
+import matplotlib as mpl
+from IPython.display import clear_output
 
 
 def get_database_connection():
@@ -230,11 +234,10 @@ def calculate_ball_possession(match_id, conn, team_id):
 
 #     return spadl_data_df
 
-def fetch_home_players(match_id, conn):
-    query = '''
-    SELECT p.player_name, p.player_id, m.match_id FROM matches m
-    JOIN teams t ON m.home_team_id = t.team_id
-    RIGHT JOIN players p ON p.team_id = t.team_id;
+def fetch_player_teams(team_id, conn):
+    query = f'''
+    SELECT p.player_id FROM players p
+    WHERE p.team_id = '{team_id}' AND p.player_name != 'ball';
     '''
     home_players = pd.read_sql_query(query, conn)
     return home_players
@@ -340,3 +343,95 @@ def fetch_transitions(match_id, team_id, conn):
         })
     return transitions
         
+
+
+def visualise_important_moments(match_id, conn):
+    query = f'''
+        SELECT spa.* , m.home_team_id, m.away_team_id, me.ball_owning_team, t.team_name, p.player_name
+        FROM spadl_actions spa
+        JOIN matches m on spa.game_id = m.match_id
+        JOIN matchevents me on m.match_id = me.match_id
+        JOIN players p on spa.player_id = p.player_id
+        JOIN teams t on p.team_id = t.team_id
+        WHERE game_id = '{match_id}' AND start_x < 45 AND spa.period_id = 1
+        ORDER BY seconds ASC
+    '''
+    
+    important_moments_df= pd.read_sql_query(query, conn)
+    important_moments_df = important_moments_df.drop_duplicates()
+        
+    correct_types = important_moments_df[important_moments_df["action_type"].isin(["0","1","21","11"])]
+    correct_team = correct_types[correct_types["away_team_id"] == correct_types["team_id"]]
+    fail = correct_team[correct_team["result"] == "0"]
+
+    times_array = fail["seconds"]
+
+    df_time = pd.DataFrame(times_array)
+
+    df_time = df_time.sort_values('seconds', ascending=True)
+
+    query_tracking = f"""
+    SELECT pt.* , p.player_name, p.team_id, p.jersey_number, m.match_id FROM player_tracking pt
+    JOIN players p on pt.player_id = p.player_id
+    JOIN matches m on pt.game_id = m.match_id
+    WHERE pt.game_id ILIKE '%{match_id}%' AND pt.period_id = 1
+    ORDER BY timestamp ASC
+    """
+
+    df_tracking = pd.read_sql_query(query_tracking, conn)
+    df_tracking['timestamp'] = pd.to_timedelta(df_tracking['timestamp']).dt.total_seconds()
+    df_tracking['timestamp'] = df_tracking['timestamp'].astype('float64')
+
+
+    ball_df = df_tracking[df_tracking['player_name'] == 'Ball']
+
+    valid_times = []
+
+    # Loop through important times (when opponent loses ball)
+    for time in df_time['seconds']:
+        initial_ball_pos = ball_df[ball_df['timestamp'] == time]
+
+        if not initial_ball_pos.empty and initial_ball_pos.iloc[0]['x'] <= 50:
+            ball_movement = ball_df[(ball_df['timestamp'] > time) & (ball_df['timestamp'] <= time + 10)]
+
+            # Check if the ball ever crosses x = 50
+            if not ball_movement[ball_movement['x'] > 50].empty:
+                valid_times.append(time)
+
+    # Create a filtered DataFrame with only the valid times
+    filtered_df_time = df_time[df_time['seconds'].isin(valid_times)]
+    filtered_df_time = filtered_df_time.drop_duplicates()
+
+    time = filtered_df_time.iloc[0]['seconds']
+    subset = df_tracking[((df_tracking['timestamp'] >= time -5) & (df_tracking['timestamp'] < time + 18))]
+    subset
+
+    colors = ["orange", "blue"]
+
+    def plot_tracking_data(tracking_data):
+        clear_output(wait=True)
+        pitch = Pitch(pitch_color='grass', line_color='white', pitch_type='opta', pitch_length=105, pitch_width=68)
+        fig, ax = pitch.draw(figsize=(12, 8))
+
+        timestamp = tracking_data['timestamp'].iloc[0]
+        team_colors = {team: colors[i % len(colors)] for i, team in enumerate(sorted(tracking_data['team_id'].unique()))}
+
+        for _, row in tracking_data.iterrows():
+            x, y = row['x'], row['y']
+            player_name = row['player_name']
+            jersey_no = row['jersey_number']
+
+            if player_name == 'Ball':
+                pitch.scatter(x, y, s=90, color='yellow', ax=ax, label='Ball')
+            else:
+                pitch.scatter(x, y, s=100, color=team_colors[row['team_id']], ax=ax, label=row['team_id'])
+                ax.text(x + 2, y + 2, f"{player_name} ({jersey_no})", fontsize=8)
+
+        ax.set_title(f'Player Positions at Event Timestamp: {timestamp}', fontsize=16)
+        plt.tight_layout()
+        plt.show()
+    unique_frame_ids = subset['frame_id'].unique()
+    
+    for frame_id in unique_frame_ids:
+        filtered_tracking_df = subset[subset['frame_id'] == frame_id]
+        plot_tracking_data(filtered_tracking_df)

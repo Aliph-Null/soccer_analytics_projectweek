@@ -125,10 +125,7 @@ def voronoi_graph(tracking_data):
         # Add player names (excluding the ball)
         if player_name != 'Ball':
             ax.text(x + 2, y + 2, f"{player_name} ({jersey_no})", fontsize=8)
-
-
-    
-
+            
     team1, team2 = pitch.voronoi(points, colors)
 
     t1 = pitch.polygon(team1, ax=ax, fc='#c34c45', ec='white', lw=3, alpha=0.4)
@@ -141,7 +138,6 @@ def voronoi_graph(tracking_data):
 #draw the pitch on a specific timeStep (frame_ID), tbf I don;t even know
 def pitch_graph(tracking_data):
     colors = ["red", "black"]
-    clear_output(wait=True)
 
     # Define pitch dimensions and colors
     pitch = Pitch(pitch_color='grass', line_color='white', pitch_type='opta',
