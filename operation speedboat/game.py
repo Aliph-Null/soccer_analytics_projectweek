@@ -1,7 +1,7 @@
 import pandas as pd
 import pygame
 from graphs import SpiderChart_1T, SpiderChart_2T, voronoi_graph
-from Python.helperfunctions import fetch_match_events, fetch_tracking_data
+from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, get_team_id
 
 class PygameWindow:
     # init the window, just basic ass values
@@ -55,6 +55,8 @@ class PygameWindow:
 
     # everything that needs to be shown on match thingy majyg (I am tired af :( )
     def display_graph(self, match_id, home_team, away_team):
+        print(self.fetch_data_once(match_id).get("test_data"))
+
         """ Display the new frame with teams' names """
         self.screen.fill((168, 213, 241))
         self.draw_text(self.width // 2, self.height // 9, f"Match id: {match_id}")
@@ -98,10 +100,13 @@ class PygameWindow:
             # remove None and uncomment this please
             match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
+            team_id_data = get_team_id(match_id, self.connection)
+            test_data = calculate_ball_possession(match_id, self.connection, team_id_data)
 
             self.cached_data[match_id] = {
                 'match_events': match_events,
-                'tracking_data': tracking_data
+                'tracking_data': tracking_data,
+                'test_data': test_data
             }
         return self.cached_data[match_id]
 

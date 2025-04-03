@@ -178,7 +178,3 @@ def pitch_graph(tracking_data):
     plt.tight_layout()
     plt.show()
 
-
-#idk how to call this function
-def spadl_graph():
-    return None
