@@ -83,7 +83,7 @@ class PygameWindow:
         text_rect = text_surface.get_rect(center=(x, y))
         self.screen.blit(text_surface, text_rect)
 
-    def display_graph(self, match_id, home_team, away_team, events):
+    def display_graph(self, match_id, home_team, away_team, home_team_id, away_team_id, events):
         self.screen.fill((168, 213, 241))
         self.draw_text(self.width // 2, self.height // 9, f"Match id: {match_id}", font_size=28, bold=True, color=(16, 16, 16))
         self.draw_text(self.width // 2, self.height // 9 + 50, f"Home Team: {home_team}", font_size=28, bold=True, color=(77, 169, 77))
@@ -166,15 +166,15 @@ class PygameWindow:
         self.view = "main"
         self.selected_match = None
 
-    def toggle_views(self, match_id=None, home_team=None, away_team=None, view_type="main"):
+    def toggle_views(self, match_id=None, home_team=None, away_team=None, home_team_id=None, away_team_id=None, view_type="main"):
         if view_type == "main":
             self.view = "main"
         elif view_type == "match":
             self.view = "match"
-            self.selected_match = (match_id, home_team, away_team)
+            self.selected_match = (match_id, home_team, away_team, home_team_id, away_team_id)
         elif view_type == "graph":
             self.view = "graph"
-            self.selected_match = (match_id, home_team, away_team)
+            self.selected_match = (match_id, home_team, away_team, home_team_id, away_team_id)
 
     def run(self, games):
         button_width, button_height = 150, 60
@@ -204,7 +204,7 @@ class PygameWindow:
                     ball_rect = self.ball_img.get_rect(center=(0, self.height // 2))
                     self.screen.blit(self.ball_img, ball_rect)
                 
-                self.draw_text(self.width // 2, 100, "Please select a match to analyze!", font_size=30, bold=True, color=(16, 16, 16))
+                self.draw_text(self.width // 2, 100, "Please select a match to analyze! getting all the info takes a while", font_size=30, bold=True, color=(16, 16, 16))
                 
                 total_matches = len(games["match_id"])
                 total_pages = math.ceil(total_matches / self.items_per_page)
@@ -219,6 +219,8 @@ class PygameWindow:
                     match_id = row.match_id
                     home_team = row.home_team_name
                     away_team = row.away_team_name
+                    home_team_id = row.home_team_id
+                    away_team_id = row.away_team_id
                     match_string = f"{home_team} vs {away_team}"
                     
                     match_pos_y = 200 + idx * vertical_spacing
@@ -226,13 +228,13 @@ class PygameWindow:
                     self.draw_button(
                         match_string, match_pos_x, match_pos_y, match_button_w, match_button_h, 
                         (168, 177, 241), (156, 166, 235), events, 
-                        lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="match")
+                        lambda m_id=match_id, h=home_team, a=away_team, hi=home_team_id, ai=away_team_id: self.toggle_views(m_id, h, a, hi, ai, view_type="match")
                     )
                     
                     self.draw_button(
                         "Graphs", graph_pos_x, match_pos_y, graph_button_w, match_button_h, 
                         (168, 177, 241), (156, 166, 235), events, 
-                        lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="graph")
+                        lambda m_id=match_id, h=home_team, a=away_team, hi=home_team_id, ai=away_team_id: self.toggle_views(m_id, h, a, hi, ai, view_type="graph")
                     )
                 
                 # Pagination buttons
@@ -245,11 +247,11 @@ class PygameWindow:
                                      lambda: self.change_page(1))
             
             elif self.view == "graph" and self.selected_match:
-                match_id, home_team, away_team = self.selected_match
-                self.display_graph(match_id, home_team, away_team, events)
+                match_id, home_team, away_team, home_team_id, away_team_id = self.selected_match
+                self.display_graph(match_id, home_team, away_team, home_team_id, away_team_id, events)
             
             elif self.view == "match" and self.selected_match:
-                match_id, home_team, away_team = self.selected_match
+                match_id, home_team, away_team, home_team_id, away_team_id = self.selected_match
                 self.display_match(match_id)
             
             pygame.display.flip()
