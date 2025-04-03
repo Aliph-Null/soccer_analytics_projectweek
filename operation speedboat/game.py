@@ -2,7 +2,7 @@ import math
 import pandas as pd
 import pygame
 
-from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, get_team_id, fetch_home_players
+from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_home_players
 from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
 
 class PygameWindow:
@@ -156,12 +156,12 @@ class PygameWindow:
         
         
     #Idk why I said please in the comment below, Just know I am running on 1 brainncell
-    def fetch_data_once(self, match_id, thing):
+    def fetch_data_once(self, match_id):
         if match_id not in self.cached_data:
             
-            if thing == 'events':
+
                 # remove None and uncomment this please
-                match_events = fetch_match_events(match_id, self.connection)
+            match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
 
             home_players_id = fetch_home_players(match_id, self.connection)
