@@ -2,15 +2,14 @@ import math
 import pandas as pd
 from Python.VisualisationTools import soccer_animation
 import pygame
+from player import player_pos
 
 from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_player_teams, visualise_important_moments, fetch_transitions
-
 from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph, plot_team_transitions
-from interpolateCustom import add_frames
-
 class PygameWindow:
     def __init__(self, connect, title="speedboat", fullscreen=True):
         self.time = 20
+        self.speed = 60
         pygame.init()
         self.title = title
         self.connection = connect
@@ -35,6 +34,15 @@ class PygameWindow:
         self.items_per_page = 6
         
         self.frame = 0
+        self.frame_extra = 16
+
+        self.all_time_stamps = []
+        self.play_size = (105 * 10.5, 68 * 10.5)
+        self.play_pos = (self.width // 2 - self.play_size[0] // 2, self.height // 2 - self.play_size[1] // 2)
+
+        self.grass = True
+        self.image1 = None
+        self.image1_rect = None
         
         # Load and scale the background ball image to cover the entire screen
         try:
@@ -47,6 +55,7 @@ class PygameWindow:
         except Exception as e:
             print(f"Error loading ball.png: {e}")
             self.ball_img = None
+
 
     def scale_image_to_fit(self, image, max_width, max_height):
         width, height = image.get_size()
@@ -211,46 +220,61 @@ class PygameWindow:
         button_y = self.height - 100
         self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), events, self.return_to_main)
 
-        pygame.display.flip()
-        
+
     def display_match(self, match_id, home_team_id, away_team_id, events):
-        data = self.fetch_data_once(match_id)
-        tracking_df = data.get('tracking_data')
+        for exframe in range(self.frame_extra):
+            data = self.fetch_data_once(match_id)
+            tracking_df = data.get('tracking_data')
 
-        home_players = self.fetch_player_from_team(home_team_id)['player_id'].tolist()
-        away_players = self.fetch_player_from_team(away_team_id)['player_id'].tolist()
-            
-        # df_ball = tracking_df[tracking_df['player_id'] == 'ball']
-        # df_home = tracking_df[tracking_df['player_id'].isin(home_players)]
-        # df_away = tracking_df[tracking_df['player_id'].isin(away_players)]
+            if self.grass:
+                plot = pitch_graph()
+                max_width = (self.width // 2 - 150) * 2
+                max_height = (self.height // 2 - 150) * 2
+                self.image1 = self.scale_image_to_fit(plot, max_width, max_height)
+                self.image1_rect = self.image1.get_rect(center=(self.width // 2, self.height // 2))
+                self.grass = False
 
-        if tracking_df["timestamp"].unique()[self.frame] < tracking_df["timestamp"].unique()[-1]:
-            plot = pitch_graph(tracking_df[tracking_df['timestamp'] == tracking_df["timestamp"].unique()[self.frame]])
-        
-        max_width = (self.width // 2 - 150) * 2
-        max_height = (self.height // 2 - 150) * 2
-        image1 = self.scale_image_to_fit(plot, max_width, max_height)
-        image1_rect = image1.get_rect(center=(self.width // 2, self.height // 2))
-        
-        self.screen.blit(image1, image1_rect)
-        
-        # Exit/back button
-        button_width, button_height = 150, 60
-        button_x = (self.width - button_width) // 2
-        button_y = self.height - 100
-        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), events, self.return_to_main)
+            self.screen.blit(self.image1, self.image1_rect)
 
-        pygame.display.flip()
+            if tracking_df["timestamp"].unique()[self.frame] < tracking_df["timestamp"].unique()[-1]:
+                players = self.all_time_stamps[self.frame]
+                for i in range(len(players)):
+                    try:
+                        future = self.all_time_stamps[self.frame+1]
+                        players[i].draw(self.screen, ((future[i].x - players[i].x) / self.frame_extra) * exframe, ((future[i].y - players[i].y) / self.frame_extra) * exframe)
+                    except:
+                        players[i].draw(self.screen)    
+            button_width, button_height = 150, 60
+            button_x = (self.width - button_width) // 2
+            button_y = self.height - 100
+            self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), events, self.return_to_main)
+
+            pygame.display.update()
+            self.clock.tick(self.speed)
+        
         
     def fetch_data_once(self, match_id):
         if match_id not in self.cached_data:
 
-            # remove None and uncomment this please
             match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
             tracking_data['timestamp'] = pd.to_timedelta(tracking_data['timestamp']).dt.total_seconds()
-            #tracking_data = tracking_data[((tracking_data['timestamp'] >= self.time -1) & (tracking_data['timestamp'] < self.time + 30))]
-            #tracking_data = add_frames(10, tracking_data)
+            
+            self.all_time_stamps = []
+            list_stamps = []
+
+            home_id = tracking_data['team_id'].unique()[1]
+            grouped_tracking = tracking_data.groupby("timestamp")
+
+            for time_stamp, group in grouped_tracking:
+                if group["period_id"].iloc[0] == 1:
+                    for _, row in group.iterrows():
+                        if row["player_id"] == "ball":
+                            list_stamps.append(player_pos(float(row["x"]), float(row["y"]), row["player_id"], 2, self.play_pos, self.play_size))
+                            self.all_time_stamps.append(list_stamps)
+                            list_stamps = []
+                        else:
+                            list_stamps.append(player_pos(float(row["x"]), float(row["y"]), row["player_id"], 0 if row["team_id"] == home_id else 1, self.play_pos, self.play_size))
 
             self.cached_data[match_id] = {
                 'match_events': match_events,
@@ -353,9 +377,9 @@ class PygameWindow:
                 self.frame += 1
                 match_id, home_team, away_team, home_team_id, away_team_id = self.selected_match
                 self.display_match(match_id, home_team_id, away_team_id, events)
-            
-            pygame.display.flip()
-            self.clock.tick(60)
+                
+            pygame.display.update()
+            self.clock.tick(self.speed)
 
     def change_page(self, delta):
         self.current_page += delta

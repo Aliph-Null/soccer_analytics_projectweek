@@ -136,42 +136,12 @@ def voronoi_graph(tracking_data):
     return matplotlib_to_pygame_surface(fig)
 
 #draw the pitch on a specific timeStep (frame_ID), tbf I don;t even know
-def pitch_graph(tracking_data):
-    colors = ["red", "black"]
-
+def pitch_graph():
     # Define pitch dimensions and colors
     pitch = Pitch(pitch_color='grass', line_color='white', pitch_type='opta',
                   pitch_length=105, pitch_width=68)
     fig, ax = pitch.draw(figsize=(12, 8))
 
-    # Extract timestamp
-    timestamp = tracking_data['timestamp'].iloc[0]
-    
-    # Assign colors to teams based on sorted order
-    team_names = sorted(tracking_data['team_id'].unique())  # Sort to maintain consistency
-    team_colors = {team: colors[i % len(colors)] for i, team in enumerate(team_names)}
-
-    # Plot player positions
-    for _, row in tracking_data.iterrows():
-        x, y = row['x'], row['y']
-        player_name = row['player_name']
-        team_name = row['team_id']
-        jersey_no = row['jersey_number']
-
-        # Plot the ball
-        if player_name == 'Ball':
-            pitch.scatter(x, y, s=90, color='yellow', ax=ax, label='Ball')
-        else:
-            # Plot players with consistent team colors
-            pitch.scatter(x, y, s=100, color=team_colors[team_name], ax=ax, label=team_name)
-
-        # Add player names (excluding the ball)
-        if player_name != 'Ball':
-            ax.text(x + 2, y + 2, f"{player_name} ({jersey_no})", fontsize=8)
-
-    # Set title
-    ax.set_title(f'Player Positions at Event Timestamp: {timestamp}', fontsize=16)
-    plt.tight_layout()
     return matplotlib_to_pygame_surface(fig)
 
 def plot_team_transitions(team1_data, team2_data, team1, team2):

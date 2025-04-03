@@ -51,7 +51,7 @@ def fetch_tracking_data(game_id, conn):
     try:
         # Query to fetch tracking data
         query = f"""
-        SELECT pt.frame_id, pt.timestamp, pt.player_id, pt.x, pt.y, p.jersey_number, p.player_name, p.team_id
+        SELECT pt.frame_id, pt.timestamp, pt.player_id, pt.x, pt.y, p.jersey_number, p.player_name, p.team_id, pt.game_id, period_id
         FROM player_tracking pt
         JOIN players p ON pt.player_id = p.player_id
         JOIN teams t ON p.team_id = t.team_id
