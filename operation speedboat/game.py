@@ -1,12 +1,15 @@
 import math
 import pandas as pd
+from Python.VisualisationTools import soccer_animation
 import pygame
 
-from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_home_players
+from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_player_teams
 from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
+from interpolateCustom import add_frames
 
 class PygameWindow:
     def __init__(self, connect, title="speedboat", fullscreen=True):
+        self.time = 20
         pygame.init()
         self.title = title
         self.connection = connect
@@ -29,7 +32,9 @@ class PygameWindow:
         self.cached_data = {}
         self.current_page = 0
         self.items_per_page = 6
-
+        
+        self.frame = 0
+        
         # Load and scale the background ball image to cover the entire screen
         try:
             original_ball_img = pygame.image.load("ball.png").convert_alpha()
@@ -123,21 +128,26 @@ class PygameWindow:
 
         pygame.display.flip()
         
-    def display_match(self, match_id):
+    def display_match(self, match_id, home_team_id, away_team_id):
         data = self.fetch_data_once(match_id)
         tracking_df = data.get('tracking_data')
+
+        home_players = self.fetch_player_from_team(home_team_id)['player_id'].tolist()
+        away_players = self.fetch_player_from_team(away_team_id)['player_id'].tolist()
+            
+        # df_ball = tracking_df[tracking_df['player_id'] == 'ball']
+        # df_home = tracking_df[tracking_df['player_id'].isin(home_players)]
+        # df_away = tracking_df[tracking_df['player_id'].isin(away_players)]
+
+        if tracking_df["timestamp"].unique()[self.frame] < tracking_df["timestamp"].unique()[-1]:
+            plot = pitch_graph(tracking_df[tracking_df['timestamp'] == tracking_df["timestamp"].unique()[self.frame]])
         
-        # Example of filtering and drawing pitch; currently commented out
-        # frame_id1 = tracking_df['frame_id'].unique()[0] 
-        # filtered_tracking_df1 = tracking_df[tracking_df['frame_id'] == frame_id1]
-        # pitch = pitch_graph(filtered_tracking_df1)
-        # image1_rect = pitch.get_rect(center=(self.width // 3, self.height // 3))
-        # self.screen.blit(pitch, image1_rect)
+        max_width = (self.width // 2 - 150) * 2
+        max_height = (self.height // 2 - 150) * 2
+        image1 = self.scale_image_to_fit(plot, max_width, max_height)
+        image1_rect = image1.get_rect(center=(self.width // 4, self.height // 2))
         
-        df_ball = tracking_df[tracking_df['player_id'] == 'ball']
-        
-        # Corrected key name for home players
-        print(data.get('home_players'))
+        self.screen.blit(image1, image1_rect)
         
         # Exit/back button
         button_width, button_height = 150, 60
@@ -152,16 +162,19 @@ class PygameWindow:
             # remove None and uncomment this please
             match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
-            home_players_id = fetch_home_players(match_id, self.connection)
-            # away_id = fetch_away_player(match_id, self.connection)    
+            tracking_data['timestamp'] = pd.to_timedelta(tracking_data['timestamp']).dt.total_seconds()
+            #tracking_data = tracking_data[((tracking_data['timestamp'] >= self.time -1) & (tracking_data['timestamp'] < self.time + 30))]
+            #tracking_data = add_frames(10, tracking_data)
             
             self.cached_data[match_id] = {
                 'match_events': match_events,
                 'tracking_data': tracking_data,
-                'home_players': home_players_id
             }
         return self.cached_data[match_id]
 
+    def fetch_player_from_team(self, team_id):
+        return fetch_player_teams(team_id, self.connection)
+        
     def return_to_main(self):
         self.view = "main"
         self.selected_match = None
@@ -251,8 +264,9 @@ class PygameWindow:
                 self.display_graph(match_id, home_team, away_team, home_team_id, away_team_id, events)
             
             elif self.view == "match" and self.selected_match:
+                self.frame += 1
                 match_id, home_team, away_team, home_team_id, away_team_id = self.selected_match
-                self.display_match(match_id)
+                self.display_match(match_id, home_team_id, away_team_id)
             
             pygame.display.flip()
             self.clock.tick(60)
