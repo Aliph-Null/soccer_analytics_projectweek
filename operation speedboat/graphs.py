@@ -176,5 +176,5 @@ def pitch_graph(tracking_data):
     # Set title
     ax.set_title(f'Player Positions at Event Timestamp: {timestamp}', fontsize=16)
     plt.tight_layout()
-    plt.show()
+    return matplotlib_to_pygame_surface(fig)
 
