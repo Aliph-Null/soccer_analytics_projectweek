@@ -3,7 +3,8 @@ import pandas as pd
 from Python.VisualisationTools import soccer_animation
 import pygame
 
-from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_player_teams
+from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_player_teams, visualise_important_moments
+
 from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
 from interpolateCustom import add_frames
 
@@ -159,13 +160,14 @@ class PygameWindow:
         
     def fetch_data_once(self, match_id):
         if match_id not in self.cached_data:
+
             # remove None and uncomment this please
             match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
             tracking_data['timestamp'] = pd.to_timedelta(tracking_data['timestamp']).dt.total_seconds()
             #tracking_data = tracking_data[((tracking_data['timestamp'] >= self.time -1) & (tracking_data['timestamp'] < self.time + 30))]
             #tracking_data = add_frames(10, tracking_data)
-            
+
             self.cached_data[match_id] = {
                 'match_events': match_events,
                 'tracking_data': tracking_data,
