@@ -1,8 +1,8 @@
 import math
 import pandas as pd
 import pygame
-from graphs import SpiderChart_1T, SpiderChart_2T, voronoi_graph
-from Python.helperfunctions import fetch_match_events, fetch_tracking_data
+from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
+from Python.helperfunctions import fetch_match_events, fetch_tracking_data, fetch_home_players
 
 class PygameWindow:
     def __init__(self, connect, title="speedboat", fullscreen=True):
@@ -121,16 +121,53 @@ class PygameWindow:
         button_width, button_height = 150, 60
         button_x = (self.width - button_width) // 2
         button_y = self.height - 100
-        self.draw_button("Back", button_x, button_y, button_width, button_height,
-                         (200, 0, 0), (255, 0, 0), events, self.return_to_main)
 
-    def fetch_data_once(self, match_id):
+        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), self.return_to_main)
+
+        pygame.display.flip()
+        
+    def display_match(self, match_id):
+        tracking_df = self.fetch_data_once(match_id).get('tracking_data')
+        
+        # frame_id1 = tracking_df['frame_id'].unique()[0] 
+        # filtered_tracking_df1 = tracking_df[tracking_df['frame_id'] == frame_id1]
+        # pitch = pitch_graph(filtered_tracking_df1)
+        
+        # image1_rect = pitch.get_rect(center=(self.width // 3, self.height // 3))
+        # self.screen.blit(pitch, image1_rect)
+        
+        df_ball = tracking_df[tracking_df['player_id'] == 'ball']
+        
+        
+        print(self.fetch_data_once(match_id).get('home_players_id'))
+        #exit button
+        button_width, button_height = 150, 60
+        button_x = (self.width - button_width) // 2
+        button_y = self.height - 100
+        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), self.return_to_main)
+
+        pygame.display.flip()
+        
+        
+    # def generate_video_once():
+        
+        
+        
+    #Idk why I said please in the comment below, Just know I am running on 1 brainncell
+    def fetch_data_once(self, match_id, thing):
         if match_id not in self.cached_data:
-            match_events = fetch_match_events(match_id, self.connection)
+            
+            if thing == 'events':
+                # remove None and uncomment this please
+                match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
+            home_players_id = fetch_home_players(match_id, self.connection)
+            #away_id = fetch_away_player(match_id, self.connection)    
+            
             self.cached_data[match_id] = {
                 'match_events': match_events,
-                'tracking_data': tracking_data
+                'tracking_data': tracking_data,
+                'home_players': home_players_id
             }
         return self.cached_data[match_id]
 
@@ -171,7 +208,7 @@ class PygameWindow:
             self.screen.fill((168, 213, 241))
             
             if self.view == "main":
-                # Draw the background ball image scaled to cover the screen
+  # Draw the background ball image scaled to cover the screen
                 if self.ball_img:
                     ball_rect = self.ball_img.get_rect(center=(0, self.height // 2))
                     self.screen.blit(self.ball_img, ball_rect)
@@ -214,10 +251,11 @@ class PygameWindow:
             
             elif self.view == "graph" and self.selected_match:
                 match_id, home_team, away_team = self.selected_match
-                # Use the same events for the back button in graph view
                 self.display_graph(match_id, home_team, away_team, events)
             
-            # Additional view handling (e.g. "match") can be implemented similarly
+            elif self.view == "match" and self.selected_match:
+                match_id, home_team, away_team = self.selected_match
+                self.display_match(match_id)
             
             pygame.display.flip()
             self.clock.tick(60)

@@ -40,6 +40,7 @@ things to do:
 -make buttons (or a list) of timestamps and noteable actions so the user can quickly see those in action.
 -style the graphs and make them more appealing to look at (no you cannot mat it scrollable, so work with buttons or smthng).
 -try to fit a model in somehow???? (read summary and look at the info folder).
+-calculate the average pass length and average pass speed of a team (or player) in a match.
 -probably a lot more sadly :(
 
 
