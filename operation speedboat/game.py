@@ -1,8 +1,9 @@
 import math
 import pandas as pd
 import pygame
+
+from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, get_team_id, fetch_home_players
 from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
-from Python.helperfunctions import fetch_match_events, fetch_tracking_data, fetch_home_players
 
 class PygameWindow:
     def __init__(self, connect, title="speedboat", fullscreen=True):
@@ -85,6 +86,7 @@ class PygameWindow:
         text_rect = text_surface.get_rect(center=(x, y))
         self.screen.blit(text_surface, text_rect)
 
+
     def display_graph(self, match_id, home_team, away_team, events):
         self.screen.fill((168, 213, 241))
         self.draw_text(self.width // 2, self.height // 9, f"Match id: {match_id}", font_size=28, bold=True, color=(16, 16, 16))
@@ -161,6 +163,7 @@ class PygameWindow:
                 # remove None and uncomment this please
                 match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
+
             home_players_id = fetch_home_players(match_id, self.connection)
             #away_id = fetch_away_player(match_id, self.connection)    
             

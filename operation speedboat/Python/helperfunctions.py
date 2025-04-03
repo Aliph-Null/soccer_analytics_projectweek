@@ -3,6 +3,7 @@ import psycopg2
 import dotenv
 import os
 
+
 def get_database_connection():
     """
     Establish and return a connection to the PostgreSQL database.
@@ -212,6 +213,27 @@ def calculate_ball_possession(match_id, conn, team_id):
     changes['time_difference'] = changes['end_time'] - changes['timestamp']
 
     return changes
+
+# def get_spadl_data(match_id, conn):
+#     Query_spadl_data = f""" 
+#     SELECT spa.game_id, period_id, seconds, spa.player_id, p.player_name, spa.team_id, t.team_name, start_x, end_x, start_y, end_y, action_type, result FROM spadl_actions spa
+#     JOIN players p ON spa.player_id = p.player_id
+#     JOIN teams t ON spa.team_id = t.team_id
+#     WHERE spa.game_id ILIKE '%{match_id}%' AND spa.period_id = 1
+#     ORDER BY seconds ASC;
+#     """
+
+#     spadl_data = pd.read_sql_query(Query_spadl_data, conn)
+
+#     spadl_data_formatted = spadl_data.rename(columns={"action_type": "type_id"})
+
+#     spadl_data_formatted["type_id"] = spadl_data_formatted["type_id"].astype(int)
+#     spadl_data_formatted["result_id"] = spadl_data_formatted["result"].astype(int)
+#     spadl_data_formatted["bodypart_id"] = spadl_data_formatted["bodypart"].astype(int)
+
+#     spadl_data_df = spadl.add_names(spadl_data_formatted)
+
+#     return spadl_data_df
 
 def fetch_home_players(match_id, conn):
     query = '''
