@@ -336,11 +336,7 @@ def fetch_transitions(match_id, team_id, conn):
         timestamp1 = seconds_to_hms(row['time_seconds'])
         timestamp2 = seconds_to_hms(row['start_seconds'])
 
-        transitions.append({
-            'period': period,
-            'start_timestamp' : timestamp2,
-            'end_timestamp' : timestamp1
-        })
+        transitions.append(period)
     return transitions
         
 

@@ -173,3 +173,27 @@ def pitch_graph(tracking_data):
     ax.set_title(f'Player Positions at Event Timestamp: {timestamp}', fontsize=16)
     plt.tight_layout()
     return matplotlib_to_pygame_surface(fig)
+
+def plot_team_transitions(team1_data, team2_data, team1, team2):
+
+    categories = ["Period 1", "Period 2"]
+    values1 = [team1_data.count(1), team1_data.count(2)]  # Values for the first bar in each period
+    values2 = [team2_data.count(1), team2_data.count(2)]   # Values for the second bar in each period
+
+    # Bar positions
+    x = np.arange(len(categories))
+    width = 0.4  # Width of the bars
+
+    # Create the plot
+    fig, ax = plt.subplots()
+    ax.set_facecolor('none')
+    ax.bar(x - width/2, values1, width, label=team1, color="#8974FB")
+    ax.bar(x + width/2, values2, width, label=team2, color="#FB7489")
+
+    # Labels and title
+    ax.set_xticks(x)
+    ax.set_xticklabels(categories)
+    ax.set_ylabel("No. Attack transitions / period")
+    ax.legend()
+    fig.patch.set_alpha(0)
+    return matplotlib_to_pygame_surface(fig)

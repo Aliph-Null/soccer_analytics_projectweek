@@ -3,9 +3,9 @@ import pandas as pd
 from Python.VisualisationTools import soccer_animation
 import pygame
 
-from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_player_teams, visualise_important_moments
+from Python.helperfunctions import calculate_ball_possession, fetch_match_events, fetch_tracking_data, fetch_player_teams, visualise_important_moments, fetch_transitions
 
-from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph
+from graphs import SpiderChart_1T, SpiderChart_2T, pitch_graph, voronoi_graph, plot_team_transitions
 from interpolateCustom import add_frames
 
 class PygameWindow:
@@ -188,7 +188,9 @@ class PygameWindow:
         t2Values = [away_short_passes / away_team_total_passes * 100, away_medium_passes / away_team_total_passes * 100, away_long_passes / away_team_total_passes * 100, away_successful_passes / away_team_total_passes * 100, away_team_goodskill / total_goodskill * 100]
 
         image1 = SpiderChart_2T("Passes comparison", [home_team, away_team], labels, t1Values, t2Values, [0, 100])
+        
         #image2 = SpiderChart_1T("Passes", home_team, labels, t1Values, [0, 100], "#4CEF4C")
+        image2 = plot_team_transitions(fetch_transitions(match_id, home_team_id, self.connection), fetch_transitions(match_id, away_team_id, self.connection), home_team, away_team)
 
         # Define maximum dimensions for each graph (e.g. half the screen width minus a margin, and half the screen height)
         max_width = (self.width // 2 - 150) * 2
@@ -196,12 +198,12 @@ class PygameWindow:
 
         # Scale images if they exceed these dimensions
         image1 = self.scale_image_to_fit(image1, max_width, max_height)
-        #image2 = self.scale_image_to_fit(image2, max_width, max_height)
+        image2 = self.scale_image_to_fit(image2, max_width, max_height)
         image1_rect = image1.get_rect(center=(self.width // 4, self.height // 2))
-        #image2_rect = image2.get_rect(center=(self.width - self.width // 4, self.height // 2))
+        image2_rect = image2.get_rect(center=(self.width - self.width // 4, self.height // 2))
 
         self.screen.blit(image1, image1_rect)
-        #self.screen.blit(image2, image2_rect)
+        self.screen.blit(image2, image2_rect)
 
         # Back button for graph view
         button_width, button_height = 150, 60
