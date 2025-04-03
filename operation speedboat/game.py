@@ -30,8 +30,6 @@ class PygameWindow:
         self.current_page = 0
         self.items_per_page = 6
 
-        
-        
         # Load and scale the background ball image to cover the entire screen
         try:
             original_ball_img = pygame.image.load("ball.png").convert_alpha()
@@ -66,7 +64,6 @@ class PygameWindow:
         pygame.draw.rect(self.screen, current_color, button_rect)
         
         # Using the new draw_text method with custom font options if needed.
-        # Here, the default font settings are used, but you can change them.
         self.draw_text(x + width // 2, y + height // 2, text, font_size=22, bold=False, color=(0, 0, 0))
         
         # Check for MOUSEBUTTONUP events over this button
@@ -86,18 +83,17 @@ class PygameWindow:
         text_rect = text_surface.get_rect(center=(x, y))
         self.screen.blit(text_surface, text_rect)
 
-
     def display_graph(self, match_id, home_team, away_team, events):
         self.screen.fill((168, 213, 241))
         self.draw_text(self.width // 2, self.height // 9, f"Match id: {match_id}", font_size=28, bold=True, color=(16, 16, 16))
         self.draw_text(self.width // 2, self.height // 9 + 50, f"Home Team: {home_team}", font_size=28, bold=True, color=(77, 169, 77))
         self.draw_text(self.width // 2, self.height // 9 + 100, f"Away Team: {away_team}", font_size=28, bold=True, color=(169, 77, 77))
 
+        # Use cached data once
+        data = self.fetch_data_once(match_id)
+        tracking_df = data.get('tracking_data')
+        events_df = data.get('match_events')
 
-        tracking_df = self.fetch_data_once(match_id).get('tracking_data')
-        events_df = self.fetch_data_once(match_id).get('match_events')
-
-        
         labels = ["Short Passes %", "Medium Passes %", "Long Passes %", "Pass success rate %", "Time to first Pass (s)"]
         t1Values = [10, 70, 20, 58, 20]
         t2Values = [30, 20, 50, 53, 3]
@@ -123,49 +119,41 @@ class PygameWindow:
         button_width, button_height = 150, 60
         button_x = (self.width - button_width) // 2
         button_y = self.height - 100
-
-        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), self.return_to_main)
+        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), events, self.return_to_main)
 
         pygame.display.flip()
         
     def display_match(self, match_id):
-        tracking_df = self.fetch_data_once(match_id).get('tracking_data')
+        data = self.fetch_data_once(match_id)
+        tracking_df = data.get('tracking_data')
         
+        # Example of filtering and drawing pitch; currently commented out
         # frame_id1 = tracking_df['frame_id'].unique()[0] 
         # filtered_tracking_df1 = tracking_df[tracking_df['frame_id'] == frame_id1]
         # pitch = pitch_graph(filtered_tracking_df1)
-        
         # image1_rect = pitch.get_rect(center=(self.width // 3, self.height // 3))
         # self.screen.blit(pitch, image1_rect)
         
         df_ball = tracking_df[tracking_df['player_id'] == 'ball']
         
+        # Corrected key name for home players
+        print(data.get('home_players'))
         
-        print(self.fetch_data_once(match_id).get('home_players_id'))
-        #exit button
+        # Exit/back button
         button_width, button_height = 150, 60
         button_x = (self.width - button_width) // 2
         button_y = self.height - 100
-        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), self.return_to_main)
+        self.draw_button("Back", button_x, button_y, button_width, button_height, (200, 0, 0), (255, 0, 0), [], self.return_to_main)
 
         pygame.display.flip()
         
-        
-    # def generate_video_once():
-        
-        
-        
-    #Idk why I said please in the comment below, Just know I am running on 1 brainncell
     def fetch_data_once(self, match_id):
         if match_id not in self.cached_data:
-            
-
-                # remove None and uncomment this please
+            # remove None and uncomment this please
             match_events = fetch_match_events(match_id, self.connection)
             tracking_data = fetch_tracking_data(match_id, self.connection)
-
             home_players_id = fetch_home_players(match_id, self.connection)
-            #away_id = fetch_away_player(match_id, self.connection)    
+            # away_id = fetch_away_player(match_id, self.connection)    
             
             self.cached_data[match_id] = {
                 'match_events': match_events,
@@ -211,7 +199,7 @@ class PygameWindow:
             self.screen.fill((168, 213, 241))
             
             if self.view == "main":
-  # Draw the background ball image scaled to cover the screen
+                # Draw the background ball image scaled to cover the screen
                 if self.ball_img:
                     ball_rect = self.ball_img.get_rect(center=(0, self.height // 2))
                     self.screen.blit(self.ball_img, ball_rect)
@@ -235,13 +223,17 @@ class PygameWindow:
                     
                     match_pos_y = 200 + idx * vertical_spacing
                     
-                    self.draw_button(match_string, match_pos_x, match_pos_y, match_button_w, match_button_h, 
-                                     (168, 177, 241), (156, 166, 235), events, 
-                                     lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="match"))
+                    self.draw_button(
+                        match_string, match_pos_x, match_pos_y, match_button_w, match_button_h, 
+                        (168, 177, 241), (156, 166, 235), events, 
+                        lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="match")
+                    )
                     
-                    self.draw_button("Graphs", graph_pos_x, match_pos_y, graph_button_w, match_button_h, 
-                                     (168, 177, 241), (156, 166, 235), events, 
-                                     lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="graph"))
+                    self.draw_button(
+                        "Graphs", graph_pos_x, match_pos_y, graph_button_w, match_button_h, 
+                        (168, 177, 241), (156, 166, 235), events, 
+                        lambda m_id=match_id, h=home_team, a=away_team: self.toggle_views(m_id, h, a, view_type="graph")
+                    )
                 
                 # Pagination buttons
                 pagination_y = self.height - 50
