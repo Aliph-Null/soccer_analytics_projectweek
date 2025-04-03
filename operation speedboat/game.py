@@ -228,7 +228,7 @@ class PygameWindow:
         max_width = (self.width // 2 - 150) * 2
         max_height = (self.height // 2 - 150) * 2
         image1 = self.scale_image_to_fit(plot, max_width, max_height)
-        image1_rect = image1.get_rect(center=(self.width // 4, self.height // 2))
+        image1_rect = image1.get_rect(center=(self.width // 2, self.height // 2))
         
         self.screen.blit(image1, image1_rect)
         
